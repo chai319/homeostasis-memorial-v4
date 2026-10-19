@@ -29,6 +29,7 @@ texts = {name: (src/name).read_text() for name in resources.paths}
 html = re.sub(r'<p><a href="v4\.[34]-continue\.html".*?</p>', '', html)
 html = re.sub(r'<p id="provisional-save".*?</p>', '', html)
 texts['app-v45.js'] = re.sub(r'^if\(\$\("provisional-save"\).*$', '', texts['app-v45.js'], flags=re.M)
+texts['app-v45.js'] = texts['app-v45.js'].replace('$("title-screen").hidden=true;$("game-screen").hidden=false;', '$("title-screen").hidden=true;$("game-screen").hidden=false;window.scrollTo(0,0);')
 manifest = json.loads((src/'performance-assets-v45.json').read_text())
 public_assets = [{k: row[k] for k in ['character','act','path']} for row in manifest['assets']]
 texts['performance-assets-v45.js'] = '''/* Existing, reviewed performance sprites. */
@@ -69,7 +70,7 @@ for name, content in texts.items():
     assert '/Users/' not in content and 'CloudStorage' not in content, name
     if name != 'game-v4.js': content = content.rstrip()+'\n'
     (dst/name).write_text(content)
-(dst/'index.html').write_text(html.rstrip()+'\n')
+(dst/'index.html').write_text(html.replace('app-v45.js?v=performance-20261018','app-v45.js?v=public-scroll-20261020').rstrip()+'\n')
 (dst/'.nojekyll').write_text('')
 
 runtime = resources.paths + ['index.html','.nojekyll']

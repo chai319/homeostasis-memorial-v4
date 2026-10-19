@@ -421,7 +421,7 @@ function begin(config){
  activityFloorFrom=config.restore?(Number.isInteger(config.restore.activityFloorFrom)?config.restore.activityFloorFrom:config.restore.position):-1;
  musicId="title";growth.reset();audio.setSfxVolume(options.sfxVolume??.45);audio.setVolume(options.bgmVolume??.3);
  suppressInference=true;inferenceOffer=null;inferenceOfferedDays=new Set(config.restore?.inferenceOfferedDays||[]);$("modal").close();finishTransition();dateInvitation=null;locationKnowledge={};preferenceKnowledge={};hintedDays=new Set();restoring=!!config.restore;seed=config.seed;gender=config.gender;player={...config.player,gender:config.player.gender||config.gender};game=config.restore&&!config.restore.revision?new Game(data,seed):new window.HMPlaytest.Game(data,seed);iterator=game.play({throughApril:config.throughApril||new URLSearchParams(location.search).has("april")});position=-1;tape={};history=[];acts={};scene=null;activity=null;lastWho=null;stageKey=null;stageCast=[];saveAllowed=true;
- $("title-screen").hidden=true;$("game-screen").hidden=false;
+ $("title-screen").hidden=true;$("game-screen").hidden=false;window.scrollTo(0,0);
  rawNext();
  if(config.restore){
   const saved=config.restore;tape=saved.tape;
