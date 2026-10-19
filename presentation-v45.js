@@ -188,4 +188,3 @@ function assignedAct(game,line,scene,playerGender,castGender){
 }
 const api={compile,acting,entries,exits,linesOf,assignedAct,expressionFor,performance};global.HMPresentation=api;if(typeof module!=="undefined")module.exports=api;
 })(globalThis);
-

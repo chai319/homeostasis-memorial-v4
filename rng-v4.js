@@ -51,4 +51,3 @@
   function pyRound(x){const f=Math.floor(x),d=x-f;return d===0.5 ? f+(f%2===0?0:1) : Math.round(x);}
   const api={PythonRandom,pyRound};global.HMRng=api;if(typeof module!=="undefined")module.exports=api;
 })(globalThis);
-

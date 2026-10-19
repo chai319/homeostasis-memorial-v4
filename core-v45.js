@@ -386,4 +386,3 @@ class Game {
 }
 const api={Game,validate,T,week};global.HMCore=api;if(typeof module!=="undefined")module.exports=api;
 })(globalThis);
-

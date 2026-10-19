@@ -67,8 +67,9 @@ with ThreadPoolExecutor(max_workers=4) as pool:
 for name, content in texts.items():
     content = re.sub(r'(assets/[A-Za-z0-9_./-]+)\.png', r'\1.webp', content)
     assert '/Users/' not in content and 'CloudStorage' not in content, name
+    if name != 'game-v4.js': content = content.rstrip()+'\n'
     (dst/name).write_text(content)
-(dst/'index.html').write_text(html)
+(dst/'index.html').write_text(html.rstrip()+'\n')
 (dst/'.nojekyll').write_text('')
 
 runtime = resources.paths + ['index.html','.nojekyll']

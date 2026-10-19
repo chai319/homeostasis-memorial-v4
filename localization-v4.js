@@ -12,4 +12,3 @@ function field(record,key,playerGender,castGender){
 }
 const api={field};global.HMLocalization=api;if(typeof module!=="undefined")module.exports=api;
 })(globalThis);
-
