@@ -25,6 +25,8 @@ class Resources(HTMLParser):
 html = (src/'index.html').read_text()
 resources = Resources(); resources.feed(html)
 texts = {name: (src/name).read_text() for name in resources.paths}
+# The same ending player can be auditioned without changing game saves.
+if (src/'credits-preview.html').is_file(): texts['credits-preview.html']=(src/'credits-preview.html').read_text()
 # These links serve older local save namespaces; they have no saves on the new origin.
 html = re.sub(r'<p><a href="v4\.[34]-continue\.html".*?</p>', '', html)
 html = re.sub(r'<p id="provisional-save".*?</p>', '', html)
@@ -43,11 +45,19 @@ refs = sorted(set(re.findall(r'assets/[A-Za-z0-9_./-]+\.(?:png|mp3)', '\n'.join(
 assert refs and all((src/p).is_file() for p in refs)
 assert not any('..' in Path(p).parts for p in refs)
 
+prior_path=args.audit/'package-report.json'
+prior={row['source']:row for row in json.loads(prior_path.read_text()).get('assets',[])} if prior_path.exists() else {}
+
 def export(rel):
     source = src/rel
     target = dst/rel
     before = source.read_bytes()
     record = {'source':rel, 'source_sha256':sha(before), 'source_bytes':len(before)}
+    cached=prior.get(rel)
+    if cached and cached['source_sha256']==record['source_sha256']:
+        existing=dst/cached['path']
+        if existing.is_file() and sha(existing.read_bytes())==cached['sha256']:
+            return dict(cached)
     if source.suffix == '.png':
         target = target.with_suffix('.webp')
         im = Image.open(source).convert('RGBA')
@@ -73,9 +83,9 @@ for name, content in texts.items():
 (dst/'index.html').write_text(html.replace('app-v45.js?v=performance-20261018','app-v45.js?v=public-scroll-20261020').rstrip()+'\n')
 (dst/'.nojekyll').write_text('')
 
-runtime = resources.paths + ['index.html','.nojekyll']
+runtime = list(dict.fromkeys(resources.paths + ['index.html','.nojekyll'] + (['credits-preview.html'] if 'credits-preview.html' in texts else [])))
 report = {
-    'version':'V4.5 performance 2026-10-18, published 2026-10-20',
+    'version':'V4.5 ending credits: theatrical quotes and graphic cast, 2026-10-20',
     'source_game_sha256':sha((src/'game-v4.js').read_bytes()),
     'source_unchanged':True,
     'runtime':[{'path':p,'sha256':sha((dst/p).read_bytes())} for p in runtime],

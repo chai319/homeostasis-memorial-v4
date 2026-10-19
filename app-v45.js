@@ -55,8 +55,16 @@ function showStatDelta(before){
 
 // Collect requests while settling/replaying; play only the final visible context.
 let musicId='title';
+const endingCredits=new window.HMEndingCredits(window.HM_ENDING_CREDITS);
+let creditsViewed=false;
+function playCredits(){
+ if(current?.type!=="complete"||endingCredits.active)return;
+ stopHold();growth.reset();$("modal").close();
+ ++audio.token;if(audio.current){audio.current.pause();audio.current.removeAttribute("src");audio.current.load();}audio.current=null;audio.id=null;
+ endingCredits.open({autoplay:true,volume:options.bgmVolume??.3,onFinish:()=>{creditsViewed=true;requestMusic("ending");flushMusic();$("replay-credits").focus({preventScroll:true});}});
+}
 function requestMusic(id){if(id&&id!=='keep')musicId=id;}
-function flushMusic(){if(restoring)return;audio.play(musicId);$('game-screen').dataset.bgm=musicId;}
+function flushMusic(){if(endingCredits.active)return;if(restoring)return;audio.play(musicId);$('game-screen').dataset.bgm=musicId;}
 function characterKey(who){return who==="hypothalamus"?who:who+"-"+(who==="redcell"?player.gender:gender);}
 function portraitSource(who,expr="neutral",act=null){
  const key=characterKey(who),set=assets.characters[key];
@@ -269,11 +277,13 @@ function render(){
   $("cast-stage").replaceChildren();toast("");saveAllowed=true;
   $("completion-eyebrow").textContent=current.type==="complete"?"HOMEOSTASIS MEMORIAL · FIN":"APRIL COMPLETE";
   $("completion-title").textContent=current.type==="complete"?displayField(game.S[current.ending],"title"):"新しい日々は、ここから。";
+  $("replay-credits").hidden=current.type!=="complete";
   $("completion-text").textContent=current.type==="complete"?"ここまで遊んでくれて、ありがとう。生徒手帳から思い出と教科書を振り返れます。":"4月の試遊はここまでです。";
  }
  renderStage();
  updateStageBounds();
  $("save-button").disabled=!saveAllowed;
+ if(current.type==="complete"&&!creditsViewed&&!endingCredits.active)playCredits();
 }
 function button(label,fn){const b=document.createElement("button");b.type="button";b.textContent=label;b.addEventListener("click",fn);return b;}
 function faceIcon(who){
@@ -393,7 +403,7 @@ function advanceDateInvitation(){
  dateInvitation=null;stageKey=null;syncStage();advance(["date",intro.target,intro.spot]);
 }
 function advance(value){
- if(busy||$("modal").open||!game)return;
+ if(busy||endingCredits.active||$("modal").open||!game)return;
  if(dateInvitation)return advanceDateInvitation();
  try{
   const beforeStats={...game.st};
@@ -417,6 +427,7 @@ function advance(value){
 function finishTransition(){clearTimeout(transitionTimer);busy=false;$("transition").hidden=true;maybeOfferInference();growth.flush();}
 $("transition").addEventListener("click",finishTransition);
 function begin(config){
+ endingCredits.dispose();creditsViewed=!!config.restore?.creditsViewed;
  if(config.restore?.revision&&config.restore.revision!==window.HMPlaytest.revision)throw Error("この記録に対応する改訂版が必要です。");
  activityFloorFrom=config.restore?(Number.isInteger(config.restore.activityFloorFrom)?config.restore.activityFloorFrom:config.restore.position):-1;
  musicId="title";growth.reset();audio.setSfxVolume(options.sfxVolume??.45);audio.setVolume(options.bgmVolume??.3);
@@ -444,7 +455,7 @@ function begin(config){
 }
 function save(){
  if(!game||!saveAllowed)return;
- const payload={schema:1,activityFloorFrom,source:window.HM_SOURCE_HASH,revision:game.revision||null,seed,gender,player,position,tape,options,dateInvitation:dateInvitation?{target:dateInvitation.target,spot:dateInvitation.spot,index:dateInvitation.index}:null,inferenceOfferedDays:[...inferenceOfferedDays],inferenceOffer:inferenceOffer?{...inferenceOffer}:null};
+ const payload={schema:1,creditsViewed,activityFloorFrom,source:window.HM_SOURCE_HASH,revision:game.revision||null,seed,gender,player,position,tape,options,dateInvitation:dateInvitation?{target:dateInvitation.target,spot:dateInvitation.spot,index:dateInvitation.index}:null,inferenceOfferedDays:[...inferenceOfferedDays],inferenceOffer:inferenceOffer?{...inferenceOffer}:null};
  localStorage.setItem(SAVE,JSON.stringify(payload));toast("ここまでの記録を保存しました。");
 }
 function load(){
@@ -600,6 +611,7 @@ $("load-title").disabled=!localStorage.getItem(SAVE);$("load-title").addEventLis
 $("save-button").addEventListener("click",save);$("history-button").addEventListener("click",showHistory);$("notebook-button").addEventListener("click",()=>notebook());
 $("map-button").addEventListener("click",showMap);
 $("milestone-notebook").addEventListener("click",()=>notebook());$("settings-button").addEventListener("click",settings);$("close-modal").addEventListener("click",()=>{inferenceOffer=null;$("modal").close();growth.flush();});
+$("replay-credits").addEventListener("click",playCredits);
 $("back-title").addEventListener("click",()=>{growth.reset();$("game-screen").hidden=true;$("title-screen").hidden=false;$("load-title").disabled=!localStorage.getItem(SAVE);requestMusic("title");flushMusic();});
 $("cast-gender").addEventListener("change",()=>{$("title-art").src=assets.characters["insulin-"+$("cast-gender").value].expression.neutral;});
 $("title-art").src=assets.characters["insulin-female"].expression.neutral;
@@ -608,12 +620,12 @@ document.addEventListener("pointerdown",()=>audio.unlock(),{once:true});
 let dialogueGesture=null,holdTimer=null,holdInterval=null;
 $("dialogue").addEventListener("pointerdown",e=>{dialogueGesture={id:e.pointerId,y:e.clientY};holdTimer=setTimeout(()=>{holdInterval=setInterval(()=>{if(current?.type==="line"&&readSet.has(lineKey(current.line)))advance();},90);},450);});
 function stopHold(){clearTimeout(holdTimer);clearInterval(holdInterval);}
-document.addEventListener("pointerup",e=>{const gesture=dialogueGesture;dialogueGesture=null;stopHold();if(gesture?.id===e.pointerId&&e.clientY-gesture.y>90&&game&&!$("modal").open)showHistory();});
+document.addEventListener("pointerup",e=>{const gesture=dialogueGesture;dialogueGesture=null;stopHold();if(gesture?.id===e.pointerId&&e.clientY-gesture.y>90&&game&&!endingCredits.active&&!$("modal").open)showHistory();});
 document.addEventListener("pointercancel",()=>{dialogueGesture=null;stopHold();});
 window.addEventListener("resize",()=>growth.position());
 document.addEventListener("visibilitychange",()=>growth.flush());
 const stageObserver=new ResizeObserver(updateStageBounds);stageObserver.observe(document.querySelector(".hud"));stageObserver.observe($("status-toast"));
 if(!report.ok){$("title-status").textContent="台本の読み込みに問題があります。";$("start-form").querySelector("button").disabled=true;}
 requestMusic("title");flushMusic();
-window.HM_APP={get game(){return game;},get current(){return current;},get inferenceOffer(){return inferenceOffer?{...inferenceOffer}:null;},get dateInvitation(){return dateInvitation?{target:dateInvitation.target,spot:dateInvitation.spot,index:dateInvitation.index}:null;},get position(){return position;},begin,advance,save,load,displayField,namedChoicePeople,notebook,validation:report};
+window.HM_APP={get game(){return game;},get current(){return current;},get inferenceOffer(){return inferenceOffer?{...inferenceOffer}:null;},get dateInvitation(){return dateInvitation?{target:dateInvitation.target,spot:dateInvitation.spot,index:dateInvitation.index}:null;},get position(){return position;},begin,advance,save,load,playCredits,get endingCredits(){return endingCredits;},displayField,namedChoicePeople,notebook,validation:report};
 })();
