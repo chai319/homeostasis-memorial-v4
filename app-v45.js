@@ -12,7 +12,7 @@ let activity=null,widget=null,restoring=false,choiceUnlockTimer=null,dateInvitat
 const endRecords=()=>{try{return JSON.parse(localStorage.getItem(SAVE+":endings")||"[]");}catch{return [];}};
 const readSet=new Set(JSON.parse(localStorage.getItem(SAVE+":read")||"[]"));
 const lineKey=line=>[player.gender,gender,scene?.id||game?.day,line.who,line.text].join("|");
-const displayField=(record,key)=>window.HMLocalization.field(record,key,player.gender,gender);
+const displayField=(record,key)=>window.HMVoiceVariants.field(record,key,player.gender,gender);
 const name=who=>who==="me"?player.sei+" "+player.mei:who==="mob"?"その他の生徒":who==="hypothalamus"?"中枢先生":who==="salt"?"塩係（備の妹・電話）":characters[who]?.[who==="redcell"?player.gender:gender]||"";
 function displayText(value,who){
  const hint=typeof value==="object"?value.buddyHint:null,growthContext=typeof value==="object"&&value.growthContext;
@@ -378,12 +378,11 @@ function renderLegacyHoliday(){
  ]);
 }
 function buildDateInvitation(target,spot,index=0){
- const script=window.HM_DATE_INVITATION,who=game.CID[target],voice=script.voices[who];
+ const script=window.HM_DATE_INVITATION,who=game.CID[target],voice=gender==="male"?{...script.voices[who],...script.maleVoices[who]}:script.voices[who];
  let [short,time,meeting]=script.meeting[spot];
  if(game.revision){if(spot==="pier")short="湖の桟橋の釣り";time=game.holidayPeriod==="午後"?(spot==="firefly"?"18時":"14時"):"10時";meeting="駅前";}
  const like=data.rules.spot_like[target].includes(spot),bad=data.rules.spot_bad[target].includes(spot);
  let answer=voice[like?"like":bad?"bad":"neutral"].replaceAll("{spot}",short);
- if(gender==="male")answer=answer.replaceAll("あなた","きみ");
  return {target,spot,index,lines:[
   {who:"narr",text:name(who)+"に連絡し、"+short+"へ一緒に行こうと誘った。"},
   {who,expr:like?"happy":bad?"worried":"neutral",text:answer},
