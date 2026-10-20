@@ -53,6 +53,17 @@
    // Keep failures handled even when this is only a speculative next-card preload.
    entry.promise.catch(()=>{});this.preloads.set(person.image,entry);img.src=person.image;return entry;
   }
+  renderQuote(target,person){
+   // No wrapper quotation marks: keep the character's own punctuation.
+   // Inline phrases stay intact while the browser balances lines for this viewport.
+   const phrases=person.quotePhrases?.join('')===person.quote?person.quotePhrases:[person.quote];
+   const content=document.createDocumentFragment();
+   for(const [index,text]of phrases.entries()){
+    if(index)content.append(document.createElement('wbr'));
+    const phrase=document.createElement('span');phrase.className='ed-quote-phrase';phrase.textContent=text;content.append(phrase);
+   }
+   target.replaceChildren(content);
+  }
   async prepareCard(index){
    const ticket=++this.imageToken,token=this.generation,person=this.config.cast[index],entry=this.preload(index),slot=this.buffer++%2;
    this.readyIndex=-1;this.$('.ed-cast').style.opacity='0';
@@ -64,7 +75,7 @@
     const card=this.$('.ed-cast');card.classList.add('ed-reset');
     this.root.style.setProperty('--ed-accent',person.accent);this.root.style.setProperty('--ed-person-art','url("'+person.image+'")');
     this.$('.ed-person-name').textContent=person.name;this.$('.ed-person-index').textContent='CAST / '+String(index+1).padStart(2,'0');
-    this.$('.ed-person-quote').textContent='「'+person.quote+'」';this.$('.ed-quote-lead blockquote').textContent='「'+person.quote+'」';this.$('.ed-big-number').textContent=String(index+1).padStart(2,'0');
+    this.renderQuote(this.$('.ed-person-quote'),person);this.renderQuote(this.$('.ed-quote-lead blockquote'),person);this.$('.ed-big-number').textContent=String(index+1).padStart(2,'0');
     for(const image of images)image.classList.toggle('is-active',image===next);
     this.readyIndex=index;this.draw();card.getBoundingClientRect();card.classList.remove('ed-reset');
     this.preload(index+1);this.preload(index+2);
