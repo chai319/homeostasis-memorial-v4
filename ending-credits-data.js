@@ -17,6 +17,6 @@
  g.HM_ENDING_CREDITS={
   title:'恒常性メモリアル',theme:'Thirty Seven Degrees',audio:'assets/bgm/thirty-seven-degrees-ed.mp3',duration:181.0285,
   background:'assets/backgrounds/ginkgo.webp',cast,
-  staff:[{role:'脚本',name:'Claude Opus'},{role:'作画・キャラクター設定',name:'Codex Sol'},{role:'音楽',name:'Gemini'},{role:'企画・監督',name:'Takehiro Kubokawa'}]
+  staff:[{role:'脚本',name:'Claude Opus 5.5'},{role:'作画・キャラクター設定',name:'Codex GPT-6.1 Sol'},{role:'音楽',name:'Gemini 3.8 Flash'},{role:'企画・監督',name:'Takehiro Kubokawa'}]
  };
 })(globalThis);

@@ -54,6 +54,20 @@ function showStatDelta(before){
 }
 
 // Collect requests while settling/replaying; play only the final visible context.
+const portraitCollection=new window.HMPortraitCollection.Collection({assets,lake:window.HM_LAKE_SPRITES,characters:window.HM_CHARACTERS,storageKey:SAVE+':portraits'});
+let portraitFrame=null;
+function schedulePortraitCollection(){
+ cancelAnimationFrame(portraitFrame);
+ portraitFrame=requestAnimationFrame(()=>{
+  if(restoring||document.hidden||$('game-screen').hidden||!$('transition').hidden||$('modal').open||!$('activity-panel').hidden||endingCredits.active)return;
+  for(const image of $('cast-stage').querySelectorAll('img')){
+   if(!image.complete||!image.naturalWidth)continue;
+   const box=image.getBoundingClientRect(),frame=$('cast-stage').getBoundingClientRect(),style=getComputedStyle(image);
+   if(box.width<=0||box.height<=0||Math.min(box.bottom,frame.bottom,innerHeight)<=Math.max(box.top,frame.top,0)||Math.min(box.right,frame.right,innerWidth)<=Math.max(box.left,frame.left,0)||style.visibility==='hidden'||Number(style.opacity)===0)continue;
+   portraitCollection.record(image.getAttribute('src'));
+  }
+ });
+}
 let musicId='title';
 const endingCredits=new window.HMEndingCredits(window.HM_ENDING_CREDITS);
 let creditsViewed=false;
@@ -117,6 +131,7 @@ function renderStage(){
   if(src&&img.getAttribute("src")!==src)img.src=src;
   slot.classList.toggle("speaking",id===activeWho);slot.classList.toggle("inactive",id!==activeWho);
  }
+ schedulePortraitCollection();
 }
 function updateStageBounds(){
  const screen=$("game-screen");if(screen.hidden)return;
@@ -423,7 +438,7 @@ function advance(value){
   showStatDelta(beforeStats);
  }catch(error){fail(error);}
 }
-function finishTransition(){clearTimeout(transitionTimer);busy=false;$("transition").hidden=true;maybeOfferInference();growth.flush();}
+function finishTransition(){clearTimeout(transitionTimer);busy=false;$("transition").hidden=true;maybeOfferInference();growth.flush();schedulePortraitCollection();}
 $("transition").addEventListener("click",finishTransition);
 function begin(config){
  endingCredits.dispose();creditsViewed=!!config.restore?.creditsViewed;
@@ -530,7 +545,7 @@ function callName(t){
 }
 function notebook(tab="能力"){
  if(!game)return;openModal("生徒手帳");const host=$("modal-content"),tabs=document.createElement("nav"),body=document.createElement("section");tabs.className="handbook-tabs";tabs.setAttribute("aria-label","手帳のページ");body.className="handbook-body";
- for(const label of ["能力","人とのつながり","図鑑","教科書","観察メモ","結末の記録"]){const b=button(label,()=>notebook(label));b.setAttribute("aria-selected",String(label===tab));tabs.append(b);}host.append(tabs,body);
+ for(const label of ["能力","人とのつながり","立ち絵図鑑","図鑑","教科書","観察メモ","結末の記録"]){const b=button(label,()=>notebook(label));b.setAttribute("aria-selected",String(label===tab));tabs.append(b);}host.append(tabs,body);
  const knownScenes=game.d.scenes.filter(s=>game.seen["scene:"+s.id]);
  const ready=T.filter(readyToInfer);
  if(ready.length&&tab!=="図鑑"&&Number(calendarRow()?.[1]?.match(/^(\d+)月/)?.[1])>=6){const guide=document.createElement("div");guide.className="inference-guide";guide.append(textElement("p","6月以降、条件がそろった相手の正体を考えるイベントが、会話の切れ目に入ります。図鑑から考えることもできます。"),button("図鑑で正体を推理する",()=>notebook("図鑑")));body.append(guide);}
@@ -543,7 +558,10 @@ function notebook(tab="能力"){
   const area=document.createElementNS(ns,"polygon");area.setAttribute("points",keys.map((k,i)=>pt(i,110*Math.min(1,game.st[k]/data.rules.stat_max)).join(",")).join(" "));area.setAttribute("fill","#1f6feb99");area.setAttribute("stroke","#ffd23f");area.setAttribute("stroke-width","3");svg.append(area);
   keys.forEach((k,i)=>{const label=document.createElementNS(ns,"text"),[x,y]=pt(i,140);label.setAttribute("x",x);label.setAttribute("y",y);label.setAttribute("fill","white");label.setAttribute("text-anchor","middle");label.textContent=data.rules.stats[k];svg.append(label);});body.append(svg);
   const stats=document.createElement("div");stats.className="stat-grid";for(const [key,label] of Object.entries(data.rules.stats)){const c=textElement("div",label,"stat-card");c.append(textElement("b",game.st[key]));stats.append(c);}body.append(stats,textElement("p","ストレス "+game.st.stress));
+ }else if(tab==="立ち絵図鑑"){
+  body.append(portraitCollection.index(portraitPerson));
  }else if(tab==="人とのつながり"||tab==="図鑑"){
+  if(tab==="人とのつながり"){const count=portraitCollection.summary();body.append(button("立ち絵図鑑を見る（"+count.collected+" / "+count.total+"）",()=>notebook("立ち絵図鑑")));}
   const cards=document.createElement("div");cards.className="notebook-grid";
   for(const t of T){const card=document.createElement("article");card.className="person-card";card.append(textElement("h3",name(game.CID[t])),textElement("p",relation(t)+(game.lit[t]?" · 気にかけてほしい様子":"")),textElement("p","呼び方："+callName(t)),textElement("p","観察メモ "+game.clues[t].size+"枚"));
    if(preferenceKnowledge[t])card.append(textElement("p","赤路メモ："+preferenceKnowledge[t],"preference-note"));
@@ -575,9 +593,17 @@ function notebook(tab="能力"){
   for(const r of records)body.append(textElement("p",r.title+" · "+(r.castGender==="male"?"男性キャスト":"女性キャスト")));
  }
 }
-function characterSheet(t){
- openModal(name(game.CID[t]));const figure=document.createElement("figure");figure.className="character-sheet";const image=document.createElement("img");image.src=portraitSource(game.CID[t]);image.alt=name(game.CID[t])+"の通常立ち絵";figure.append(image);
- const back=button("図鑑に戻る",()=>notebook("図鑑"));$("modal-content").append(figure,textElement("p",relation(t)+" · 身長"+window.HM_STAGE_METRICS[characterKey(game.CID[t])].height_cm+"cm"),back);
+function characterSheet(t){portraitPerson(characterKey(game.CID[t]));}
+function portraitPerson(key){
+ const person=portraitCollection.person(key);if(!person)return;
+ openModal(portraitCollection.title(person)+'の立ち絵');
+ if(portraitCollection.known(person)){const target=T.find(t=>game.CID[t]===person.who),height=window.HM_STAGE_METRICS[key].height_cm;$('modal-content').append(textElement('p',(target?relation(target)+' · ':'')+'身長'+height+'cm'));}
+ $('modal-content').append(portraitCollection.sheet(key,{onBack:()=>notebook('立ち絵図鑑'),onOpen:portraitDetail}));$('modal-content').scrollTop=0;
+}
+function portraitDetail(key,id){
+ const person=portraitCollection.person(key);if(!person)return;
+ openModal(portraitCollection.title(person)+'の立ち絵');
+ $('modal-content').append(portraitCollection.detail(key,id,()=>portraitPerson(key)));$('modal-content').scrollTop=0;
 }
 function infer(t){
  if(!canInferNow()||!readyToInfer(t))return;
@@ -621,10 +647,13 @@ $("dialogue").addEventListener("pointerdown",e=>{dialogueGesture={id:e.pointerId
 function stopHold(){clearTimeout(holdTimer);clearInterval(holdInterval);}
 document.addEventListener("pointerup",e=>{const gesture=dialogueGesture;dialogueGesture=null;stopHold();if(gesture?.id===e.pointerId&&e.clientY-gesture.y>90&&game&&!endingCredits.active&&!$("modal").open)showHistory();});
 document.addEventListener("pointercancel",()=>{dialogueGesture=null;stopHold();});
-window.addEventListener("resize",()=>growth.position());
-document.addEventListener("visibilitychange",()=>growth.flush());
+window.addEventListener("resize",()=>{growth.position();schedulePortraitCollection();});
+window.addEventListener("storage",event=>{if(event.key===portraitCollection.storageKey)portraitCollection.mergeStorage();});
+document.addEventListener("visibilitychange",()=>{growth.flush();schedulePortraitCollection();});
+$("cast-stage").addEventListener("load",schedulePortraitCollection,true);
+$("modal").addEventListener("close",schedulePortraitCollection);
 const stageObserver=new ResizeObserver(updateStageBounds);stageObserver.observe(document.querySelector(".hud"));stageObserver.observe($("status-toast"));
 if(!report.ok){$("title-status").textContent="台本の読み込みに問題があります。";$("start-form").querySelector("button").disabled=true;}
 requestMusic("title");flushMusic();
-window.HM_APP={get game(){return game;},get current(){return current;},get inferenceOffer(){return inferenceOffer?{...inferenceOffer}:null;},get dateInvitation(){return dateInvitation?{target:dateInvitation.target,spot:dateInvitation.spot,index:dateInvitation.index}:null;},get position(){return position;},begin,advance,save,load,playCredits,get endingCredits(){return endingCredits;},displayField,namedChoicePeople,notebook,validation:report};
+window.HM_APP={get game(){return game;},get current(){return current;},get inferenceOffer(){return inferenceOffer?{...inferenceOffer}:null;},get dateInvitation(){return dateInvitation?{target:dateInvitation.target,spot:dateInvitation.spot,index:dateInvitation.index}:null;},get position(){return position;},begin,advance,save,load,playCredits,get endingCredits(){return endingCredits;},get portraitCollection(){return portraitCollection.summary();},displayField,namedChoicePeople,notebook,validation:report};
 })();
